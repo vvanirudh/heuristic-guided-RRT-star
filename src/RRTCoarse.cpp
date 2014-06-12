@@ -2,17 +2,22 @@
 * Created : June 11th
 * Author : Anirudh Vemula
 */
-
+#include "ompl/base/goals/GoalState.h"
+#include "ompl/base/spaces/RealVectorBounds.h"
+#include "ompl/base/spaces/SE2StateSpace.h"
 #include "ompl/base/goals/GoalSampleableRegion.h"
 #include "ompl/tools/config/SelfConfig.h"
 #include "ompl/base/objectives/PathLengthOptimizationObjective.h"
 #include "RRTCoarse/RRTCoarse.h"
+#include <ompl/base/StateSpaceTypes.h>
 #include <algorithm>
 #include <limits>
 #include <map>
+#include <queue>
+#include <math.h>
 #include <boost/math/constants/constants.hpp>
 
-RRTCoarse::RRTCoarse(const base::SpaceInformationPtr &si) : base::Planner(si, "RRTCoarse")
+RRTCoarse::RRTCoarse(const base::SpaceInformationPtr &si) : base::Planner(si, "RRTCoarse"), grid_(2)
 {
     specs_.approximateSolutions = true;
     specs_.optimizingPaths = true;
@@ -533,4 +538,77 @@ std::string RRTCoarse::getCollisionCheckCount(void) const
 std::string RRTCoarse::getBestCost(void) const
 {
   return boost::lexical_cast<std::string>(bestCost_.v);
+}
+
+
+void RRTCoarse::buildGrid(void) {
+    if(si_->getStateSpace()->getType()!=base::STATE_SPACE_SE2) {
+        return;
+    }
+
+    /* State space is SE2 */
+    base::Goal *goal = pdef_->getGoal().get();
+    base::GoalState *goalstateptr = dynamic_cast<base::GoalState*>(goal);
+    base::State *goalstate = goalstateptr->getState(); // Obtained the goal state
+
+    /* Get the goal coordinates */
+    double goalX = dynamic_cast<base::SE2StateSpace::StateType*>(goalstate)->getX();
+    double goalY = dynamic_cast<base::SE2StateSpace::StateType*>(goalstate)->getY();
+
+    /* Get the start coordinates */
+    double startX = dynamic_cast<base::SE2StateSpace::StateType*>(pdef_->getStartState(0))->getX();
+    double startY = dynamic_cast<base::SE2StateSpace::StateType*>(pdef_->getStartState(0))->getY();
+
+    /* Get bounds of the state space */
+    boost::shared_ptr<base::StateSpace> space = si_->getStateSpace();
+    base::RealVectorBounds bounds = dynamic_cast<base::SE2StateSpace*>(space.get())->getBounds();
+    double xlow = bounds.low[0];
+    double xhigh = bounds.high[0];
+    double ylow = bounds.low[1];
+    double yhigh = bounds.high[1];
+
+    /* Create all grid cells */
+    for(int i = std::floor(xlow); i < std::floor(xhigh) + 1; i++) {
+        for(int j = std::floor(ylow); j < std::floor(yhigh) + 1; j++) {
+            std::vector<int> coord;
+            coord.push_back(i);
+            coord.push_back(j);
+            Grid<int>::Cell * cell = grid_.createCell(coord);
+            cell->data = -1;
+            grid_.add(cell);
+        }
+    }
+
+    /* Run Djikstra/ some other to assign value function to all cells */
+    std::queue<Grid<int>::Cell*> cellqueue;
+    std::vector<int> coord;
+    coord.push_back(std::floor(goalX));
+    coord.push_back(std::floor(goalY));
+    Grid<int>::Cell * goal_cell = grid_.getCell(coord);
+    goal_cell->data = 0;
+    cellqueue.push(goal_cell);
+    while(!cellqueue.empty()) {
+        Grid<int>::Cell* cell = cellqueue.front();
+        cellqueue.pop();
+        coord = cell->coord;
+        int x = coord[0];
+        int y = coord[1];
+        int data = cell->data;
+        data++;
+        for (int i = -1; i < 2; i++) {
+            for (int j = -1; j < 2; j++) {
+                if(i==0 && j==0)
+                    continue;
+                coord[0] = x+i;
+                coord[1] = y+j;
+                if(grid_.has(coord)) {
+                    cell = grid_.getCell(coord);
+                    if(cell->data==-1) {
+                        cell->data = data;
+                        cellqueue.push(cell);
+                    }
+                }
+            }
+        }
+    }
 }

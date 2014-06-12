@@ -203,4 +203,14 @@ class RRTCoarse : public base::Planner
 
 	/** \brief Best cost found so far by algorithm */
 	base::Cost                                     bestCost_;
+
+	/**
+	 * \brief The grid on the statespace that contains the value function
+	 */
+	Grid<int>																				grid_;
+
+	/**
+	 * \brief The function that builds the value function grid
+	 */
+	void buildGrid(void);
 };
