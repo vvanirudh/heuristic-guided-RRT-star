@@ -1,0 +1,1 @@
+This planner extends RRT* from OMPL and integrates a coarse grid-based value function obtained from a discrete planner (maybe djikstra) into the RRT* to vary its sampling strategy to bias towards regions of low value function.
