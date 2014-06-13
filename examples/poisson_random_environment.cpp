@@ -43,7 +43,7 @@ int main(int argc, char **argv) {
   ros::Duration(1.0).sleep();
 
   PoissonRandomEnvironment Poissonenv;
-  Poissonenv.Initialize(0.0005, 0, 0, 100, 100);
+  Poissonenv.Initialize(0.001, 0, 0, 100, 100);
   Poissonenv.CarveCircle(1,1,5);
   Poissonenv.CarveCircle(88,88,5);
   boost::shared_ptr<Environment> env = boost::shared_ptr<Environment>(new PoissonRandomEnvironment(Poissonenv));
@@ -69,7 +69,7 @@ int main(int argc, char **argv) {
 
   boost::shared_ptr<RRTCoarse> rrtc = boost::shared_ptr<RRTCoarse>(new RRTCoarse(si));
   rrtc->setRange(5);
-  rrtc->setExploreBias(0.1);
+  rrtc->setExploreBias(0.01);
 
   
 
@@ -84,7 +84,7 @@ int main(int argc, char **argv) {
 
   
 
-  ob::PlannerStatus solved = optimizingPlanner->solve(20.0);
+  ob::PlannerStatus solved = optimizingPlanner->solve(50.0);
 
   if (solved) {
     std::vector<double> reals;
@@ -115,7 +115,7 @@ int main(int argc, char **argv) {
     ob::PlannerPtr optimizingPlanner2(rrtstar);
     optimizingPlanner2->setProblemDefinition(pdef2);
     optimizingPlanner2->setup();
-    ob::PlannerStatus solved2 = optimizingPlanner2->solve(20.0);
+    ob::PlannerStatus solved2 = optimizingPlanner2->solve(50.0);
 
     boost::shared_ptr<og::PathGeometric> path2 = boost::static_pointer_cast<og::PathGeometric>(pdef2->getSolutionPath());
     path2->interpolate(1000);

@@ -25,7 +25,7 @@
  */
 struct CellComparator {
     bool operator() (const Grid<int>::Cell* lhs, const Grid<int>::Cell* rhs) {
-        return lhs->data > rhs->data;
+        return lhs->data >= rhs->data;
     }
 };
 // bool operator<(const Grid<int>::Cell& lhs, const Grid<int>::Cell& rhs) {
