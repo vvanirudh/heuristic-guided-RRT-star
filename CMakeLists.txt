@@ -7,6 +7,8 @@ project(RRTCoarse)
 find_package(catkin REQUIRED COMPONENTS
   ompl
   roscpp
+  environment_generator
+  shapes
 )
 
 ## System dependencies are found with CMake's conventions
@@ -81,7 +83,7 @@ set(CMAKE_CXX_FLAGS "-frounding-math")
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES RRTCoarse
-  CATKIN_DEPENDS ompl roscpp
+  CATKIN_DEPENDS ompl roscpp environment_generator shapes
 #  DEPENDS system_lib
 )
 
@@ -105,6 +107,15 @@ include_directories(
 file(GLOB_RECURSE env_SOURCES src/*.cpp src/*.c)
 add_library(${PROJECT_NAME} ${env_SOURCES})
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
+
+file( GLOB APP_SOURCES RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}/examples examples/*.cpp )
+foreach( testsourcefile ${APP_SOURCES} )
+    # I used a simple string replace, to cut off .cpp.
+    string( REPLACE ".cpp" "" testname ${testsourcefile} )
+    add_executable( ${PROJECT_NAME}_${testname} examples/${testsourcefile} )
+    # Make sure YourLib is linked to each app
+    target_link_libraries( ${PROJECT_NAME}_${testname} ${PROJECT_NAME} ${catkin_LIBRARIES})
+endforeach( testsourcefile ${APP_SOURCES} )
 
 ## Declare a cpp executable
 # add_executable(RRTCoarse_node src/RRTCoarse_node.cpp)

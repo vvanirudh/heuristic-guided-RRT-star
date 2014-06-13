@@ -42,8 +42,12 @@
   <buildtool_depend>catkin</buildtool_depend>
   <build_depend>ompl</build_depend>
   <build_depend>roscpp</build_depend>
+  <build_depend>environment_generator</build_depend>
+  <build_depend>shapes</build_depend>
   <run_depend>ompl</run_depend>
   <run_depend>roscpp</run_depend>
+  <run_depend>environment_generator</run_depend>
+  <run_depend>shapes</run_depend>
 
 
   <!-- The export tag contains other, unspecified, tags -->

@@ -115,10 +115,11 @@ ompl::base::PlannerStatus RRTCoarse::solve(const base::PlannerTerminationConditi
 {
     /* My addition */
     buildGrid();
-    std::vector<Grid<int>::Cell*> cellsExplored;
+    // std::vector<Grid<int>::Cell*> cellsExplored;
     // std::priority_queue<Grid<int>::Cell> cellQueue;
     std::priority_queue<Grid<int>::Cell*, std::vector<Grid<int>::Cell*>, CellComparator> cellQueue;
     /* End of my addition */
+    
     checkValidity();
     base::Goal                  *goal   = pdef_->getGoal().get();
     base::GoalSampleableRegion  *goal_s = dynamic_cast<base::GoalSampleableRegion*>(goal);
@@ -135,7 +136,7 @@ ompl::base::PlannerStatus RRTCoarse::solve(const base::PlannerTerminationConditi
         nn_->add(motion);
         /* My addition */
         if(si_->getStateSpace()->getType()==base::STATE_SPACE_SE2) {
-            cellsExplored.push_back(getGridCell(st));
+            // cellsExplored.push_back(getGridCell(st));
             cellQueue.push((getGridCell(st)));
         }
         /* End of my addition */
@@ -190,15 +191,15 @@ ompl::base::PlannerStatus RRTCoarse::solve(const base::PlannerTerminationConditi
     while (ptc == false)
     {
         iterations_++;
-        if(!si_->getStateSpace()->getType()==base::STATE_SPACE_SE2) {
-            // sample random state (with goal biasing)
-            // Goal samples are only sampled until maxSampleCount() goals are in the tree, to prohibit duplicate goal states.
-            if (goal_s && goalMotions_.size() < goal_s->maxSampleCount() && rng_.uniform01() < goalBias_ && goal_s->canSample())
-                goal_s->sampleGoal(rstate);
-            else
-                sampler_->sampleUniform(rstate);
-        }
-        else {
+        // if(si_->getStateSpace()->getType()!=base::STATE_SPACE_SE2) {
+        //     // sample random state (with goal biasing)
+        //     // Goal samples are only sampled until maxSampleCount() goals are in the tree, to prohibit duplicate goal states.
+        //     if (goal_s && goalMotions_.size() < goal_s->maxSampleCount() && rng_.uniform01() < goalBias_ && goal_s->canSample())
+        //         goal_s->sampleGoal(rstate);
+        //     else
+        //         sampler_->sampleUniform(rstate);
+        // }
+        // else {
             if (goal_s && goalMotions_.size() < goal_s->maxSampleCount() && rng_.uniform01() < goalBias_ && goal_s->canSample())
                 goal_s->sampleGoal(rstate);
             else if(rng_.uniform01() < exploreBias_)
@@ -207,12 +208,13 @@ ompl::base::PlannerStatus RRTCoarse::solve(const base::PlannerTerminationConditi
                 Grid<int>::Cell *cell = cellQueue.top();
                 double xCoord = cell->coord[0];
                 double yCoord = cell->coord[1];
-                base::SE2StateSpace::StateType nearState;
-                nearState.setX(xCoord);
-                nearState.setY(yCoord);
-                sampler_->sampleUniformNear(&nearState, rstate, maxDistance_);
+                base::State* tempSt = si_->allocState();
+                base::SE2StateSpace::StateType* nearState = tempSt->as<base::SE2StateSpace::StateType>();
+                nearState->setX(xCoord);
+                nearState->setY(yCoord);
+                sampler_->sampleUniformNear(nearState, rstate, maxDistance_);
             }
-        }
+        // }
 
         // find closest state in the tree
         Motion *nmotion = nn_->nearest(rmotion);
@@ -354,7 +356,7 @@ ompl::base::PlannerStatus RRTCoarse::solve(const base::PlannerTerminationConditi
 
             /* My addition */
             if(si_->getStateSpace()->getType()!=base::STATE_SPACE_SE2) {
-                cellsExplored.push_back(getGridCell(dstate));
+                // cellsExplored.push_back(getGridCell(dstate));
                 cellQueue.push((getGridCell(dstate)));
             }
             /* End of my addition */
@@ -605,20 +607,29 @@ void RRTCoarse::buildGrid(void) {
 
     /* State space is SE2 */
     base::Goal *goal = pdef_->getGoal().get();
-    base::GoalState *goalstateptr = dynamic_cast<base::GoalState*>(goal);
+    // base::GoalState *goalstateptr = dynamic_cast<base::GoalState*>(goal);
+    base::GoalState* goalstateptr = goal->as<base::GoalState>();
     base::State *goalstate = goalstateptr->getState(); // Obtained the goal state
 
     /* Get the goal coordinates */
-    double goalX = dynamic_cast<base::SE2StateSpace::StateType*>(goalstate)->getX();
-    double goalY = dynamic_cast<base::SE2StateSpace::StateType*>(goalstate)->getY();
+    // double goalX = dynamic_cast<base::SE2StateSpace::StateType*>(goalstate)->getX();
+    // double goalY = dynamic_cast<base::SE2StateSpace::StateType*>(goalstate)->getY();
+    base::SE2StateSpace::StateType * goalst = goalstate->as<base::SE2StateSpace::StateType>();
+    double goalX = goalst->getX();
+    double goalY = goalst->getY();
 
     /* Get the start coordinates */
-    double startX = dynamic_cast<base::SE2StateSpace::StateType*>(pdef_->getStartState(0))->getX();
-    double startY = dynamic_cast<base::SE2StateSpace::StateType*>(pdef_->getStartState(0))->getY();
+    // double startX = dynamic_cast<base::SE2StateSpace::StateType*>(pdef_->getStartState(0))->getX();
+    // double startY = dynamic_cast<base::SE2StateSpace::StateType*>(pdef_->getStartState(0))->getY();
+    base::SE2StateSpace::StateType* startst = pdef_->getStartState(0)->as<base::SE2StateSpace::StateType>();
+    double startX = startst->getX();
+    double startY = startst->getY();
 
     /* Get bounds of the state space */
     boost::shared_ptr<base::StateSpace> space = si_->getStateSpace();
-    base::RealVectorBounds bounds = dynamic_cast<base::SE2StateSpace*>(space.get())->getBounds();
+    // base::RealVectorBounds bounds = dynamic_cast<base::SE2StateSpace*>(space.get())->getBounds();
+    base::SE2StateSpace* statespace = (space.get())->as<base::SE2StateSpace>();
+    base::RealVectorBounds bounds = statespace->getBounds();
     double xlow = bounds.low[0];
     double xhigh = bounds.high[0];
     double ylow = bounds.low[1];
@@ -678,19 +689,21 @@ void RRTCoarse::buildGrid(void) {
 bool RRTCoarse::isValidCoord(std::vector<int> coord) {
     int x = coord[0];
     int y = coord[1];
-    base::SE2StateSpace::StateType state;
+    // base::SE2StateSpace::StateType state;
+    base::State* state = si_->allocState();
+    base::SE2StateSpace::StateType* st = state->as<base::SE2StateSpace::StateType>();
     /* Check the end points for validity */
     for(int i = 0; i < 2; i++) {
         for (int j = 0; j < 2; j++) {
-            state.setXY(x+i,y+j);
-            base::State * s = &state;
+            st->setXY(x+i,y+j);
+            base::State * s = st;
             if(!si_->isValid(s))
                 return false;
         }
     }
     /* Check the center of the cell for validity */
-    state.setXY(x+0.5,y+0.5);
-    base::State * s = &state;
+    st->setXY(x+0.5,y+0.5);
+    base::State * s = st;
     if(!si_->isValid(s))
         return false;
     return true;
