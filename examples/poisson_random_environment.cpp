@@ -40,9 +40,9 @@ int main(int argc, char **argv) {
   ros::Duration(1.0).sleep();
 
   PoissonRandomEnvironment Poissonenv;
-  Poissonenv.Initialize(0.005, 0, 0, 100, 100);
+  Poissonenv.Initialize(0.0005, 0, 0, 100, 100);
   Poissonenv.CarveCircle(1,1,5);
-  Poissonenv.CarveCircle(99,99,5);
+  Poissonenv.CarveCircle(88,88,5);
   boost::shared_ptr<Environment> env = boost::shared_ptr<Environment>(new PoissonRandomEnvironment(Poissonenv));
 
   ob::StateSpacePtr space(new ob::DubinsStateSpace(2.0, false));
@@ -58,14 +58,15 @@ int main(int argc, char **argv) {
   si->setStateValidityCheckingResolution(0.002);
 
   start[0] = start[1] = 1.; start[2] = 0.;
-  goal[0] = goal[1] = 99; goal[2] = 0*-.99*boost::math::constants::pi<double>();
+  goal[0] = goal[1] = 88; goal[2] = 0*-.99*boost::math::constants::pi<double>();
 
   ob::ProblemDefinitionPtr pdef(new ob::ProblemDefinition(si));
   pdef->setStartAndGoalStates(start, goal);
   pdef->setOptimizationObjective(getPathLengthObjective(si));
 
   boost::shared_ptr<RRTCoarse> rrtc = boost::shared_ptr<RRTCoarse>(new RRTCoarse(si));
-  rrtc->setRange(2);
+  rrtc->setRange(5);
+  rrtc->setExploreBias(0.1);
 
   ob::PlannerPtr optimizingPlanner(rrtc);
   optimizingPlanner->setProblemDefinition(pdef);
@@ -76,7 +77,7 @@ int main(int argc, char **argv) {
     ma.markers[i].id = i;
   pub_env_marker_array.publish(ma);
 
-  ob::PlannerStatus solved = optimizingPlanner->solve(1.0);
+  ob::PlannerStatus solved = optimizingPlanner->solve(20.0);
 
   if (solved) {
     std::vector<double> reals;

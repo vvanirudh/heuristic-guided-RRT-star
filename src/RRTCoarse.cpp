@@ -16,6 +16,7 @@
 #include <queue>
 #include <math.h>
 #include <boost/math/constants/constants.hpp>
+#include <iostream>
 
 /**
  * \brief Overloading(or defining) the less than operator for grid cells. 
@@ -115,8 +116,6 @@ ompl::base::PlannerStatus RRTCoarse::solve(const base::PlannerTerminationConditi
 {
     /* My addition */
     buildGrid();
-    // std::vector<Grid<int>::Cell*> cellsExplored;
-    // std::priority_queue<Grid<int>::Cell> cellQueue;
     std::priority_queue<Grid<int>::Cell*, std::vector<Grid<int>::Cell*>, CellComparator> cellQueue;
     /* End of my addition */
     
@@ -136,12 +135,16 @@ ompl::base::PlannerStatus RRTCoarse::solve(const base::PlannerTerminationConditi
         nn_->add(motion);
         /* My addition */
         if(si_->getStateSpace()->getType()==base::STATE_SPACE_SE2) {
-            // cellsExplored.push_back(getGridCell(st));
+            /* Debug Statements */
+            const base::SE2StateSpace::StateType* debug_st = st->as<base::SE2StateSpace::StateType>();
+            double debug_x = debug_st->getX();
+            double debug_y = debug_st->getY();
+            std::cout<<"Added start states "<<debug_x<<" "<<debug_y<<std::endl;
+            /* End */
             cellQueue.push((getGridCell(st)));
         }
         /* End of my addition */
     }
-
     if (nn_->size() == 0)
     {
         OMPL_ERROR("%s: There are no valid initial states!", getName().c_str());
@@ -187,33 +190,41 @@ ompl::base::PlannerStatus RRTCoarse::solve(const base::PlannerTerminationConditi
 
     // our functor for sorting nearest neighbors
     CostIndexCompare compareFn(costs, *opt_);
+    std::cout<<"PTC : "<<ptc<<std::endl;
 
     while (ptc == false)
     {
         iterations_++;
-        // if(si_->getStateSpace()->getType()!=base::STATE_SPACE_SE2) {
-        //     // sample random state (with goal biasing)
-        //     // Goal samples are only sampled until maxSampleCount() goals are in the tree, to prohibit duplicate goal states.
-        //     if (goal_s && goalMotions_.size() < goal_s->maxSampleCount() && rng_.uniform01() < goalBias_ && goal_s->canSample())
-        //         goal_s->sampleGoal(rstate);
-        //     else
-        //         sampler_->sampleUniform(rstate);
-        // }
-        // else {
-            if (goal_s && goalMotions_.size() < goal_s->maxSampleCount() && rng_.uniform01() < goalBias_ && goal_s->canSample())
-                goal_s->sampleGoal(rstate);
-            else if(rng_.uniform01() < exploreBias_)
-                sampler_->sampleUniform(rstate);
-            else {
-                Grid<int>::Cell *cell = cellQueue.top();
-                double xCoord = cell->coord[0];
-                double yCoord = cell->coord[1];
-                base::State* tempSt = si_->allocState();
-                base::SE2StateSpace::StateType* nearState = tempSt->as<base::SE2StateSpace::StateType>();
-                nearState->setX(xCoord);
-                nearState->setY(yCoord);
-                sampler_->sampleUniformNear(nearState, rstate, maxDistance_);
-            }
+        std::cout<<"Iterations : "<<iterations_<<std::endl;
+        if (goal_s && goalMotions_.size() < goal_s->maxSampleCount() && rng_.uniform01() < goalBias_ && goal_s->canSample()) {
+            /* Debug Statements */
+            std::cout<<"Sampled Goal"<<std::endl;
+            /* End */
+            goal_s->sampleGoal(rstate);
+        }
+        else if(rng_.uniform01() < exploreBias_) {
+            /* Debug Statements */
+            std::cout<<"Sampled Randomly"<<std::endl;
+            /* End */
+            sampler_->sampleUniform(rstate);
+        }
+        else {
+            Grid<int>::Cell *cell = cellQueue.top();
+            double xCoord = cell->coord[0];
+            double yCoord = cell->coord[1];
+            /* Debug Statements */
+            std::cout<<"Popped cell coordinates "<<xCoord<<" "<<yCoord<<std::endl;
+            /* End */
+            base::State* tempSt = si_->allocState();
+            base::SE2StateSpace::StateType* nearState = tempSt->as<base::SE2StateSpace::StateType>();
+            nearState->setX(xCoord);
+            nearState->setY(yCoord);
+            base::State* nearSt = nearState;
+            sampler_->sampleUniformNear(nearSt, rstate, maxDistance_);
+            /* Debug Statements */
+            std::cout<<"Sampled Point "<<(rstate->as<base::SE2StateSpace::StateType>())->getX()<<" "<<(rstate->as<base::SE2StateSpace::StateType>())->getY()<<std::endl;
+            /* End */
+        }
         // }
 
         // find closest state in the tree
@@ -355,8 +366,11 @@ ompl::base::PlannerStatus RRTCoarse::solve(const base::PlannerTerminationConditi
             motion->parent->children.push_back(motion);
 
             /* My addition */
-            if(si_->getStateSpace()->getType()!=base::STATE_SPACE_SE2) {
+            if(si_->getStateSpace()->getType()==base::STATE_SPACE_SE2) {
                 // cellsExplored.push_back(getGridCell(dstate));
+                /* Debug Statements */
+                std::cout<<"Pushed state "<<(dstate->as<base::SE2StateSpace::StateType>())->getX() << " " << (dstate->as<base::SE2StateSpace::StateType>())->getY()<<std::endl;
+                /* End */
                 cellQueue.push((getGridCell(dstate)));
             }
             /* End of my addition */
@@ -677,6 +691,9 @@ void RRTCoarse::buildGrid(void) {
                             cellqueue.push(cell);
                         }
                         else {
+                            /* Debug Statements */
+                            std::cout<<"Cell "<<coord[0]<<" "<<coord[1]<<" has obstacle"<<std::endl;
+                            /* End */
                             cell->data = std::numeric_limits<int>::max();
                         }
                     }
