@@ -93,6 +93,16 @@ class RRTCoarse : public base::Planner
 
 	virtual void setup(void);
 
+	/* My addition */
+	void setExploreBias(double exploreBias) {
+		exploreBias_ = exploreBias;
+	}
+
+	double getExploreBias(void) {
+		return exploreBias_;
+	}
+	/* End of my addition */
+
 	///////////////////////////////////////
 	// Planner progress property functions
 	std::string getIterationCount(void) const;
@@ -204,6 +214,8 @@ class RRTCoarse : public base::Planner
 	/** \brief Best cost found so far by algorithm */
 	base::Cost                                     bestCost_;
 
+	/* My addition */
+
 	/**
 	 * \brief The grid on the statespace that contains the value function
 	 */
@@ -213,4 +225,23 @@ class RRTCoarse : public base::Planner
 	 * \brief The function that builds the value function grid
 	 */
 	void buildGrid(void);
+
+	/**
+	 * \brief The function that checks whether a given coordinate/cell contains an obstacle
+	 * @param  coord vector containing the coordinate values
+	 * @return       True if the cell does not contain an obstacle, false if it does.
+	 */
+	bool isValidCoord(std::vector<int> coord);
+
+	/**
+	 * \brief Gives the grid cell corresponding to the state
+	 * @param  s Input State
+	 * @return   The cell corresponding to the given input state
+	 */
+	Grid<int>::Cell* getGridCell(const base::State* s);
+
+	/**
+	 * \brief The fraction of time some random state is sampled instead of biasing it towards the decreasing gradient of value function
+	 */
+	double 																					exploreBias_;
 };

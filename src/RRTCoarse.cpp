@@ -17,6 +17,23 @@
 #include <math.h>
 #include <boost/math/constants/constants.hpp>
 
+/**
+ * \brief Overloading(or defining) the less than operator for grid cells. 
+ * This is done in the reverse way so that the cell with the least value
+ * will float upto the top of the priority queue
+ */
+struct CellComparator {
+    bool operator() (const Grid<int>::Cell* lhs, const Grid<int>::Cell* rhs) {
+        return lhs->data > rhs->data;
+    }
+};
+// bool operator<(const Grid<int>::Cell& lhs, const Grid<int>::Cell& rhs) {
+//     if(lhs.data>rhs.data)
+//         return true;
+//     else 
+//         return false;
+// }
+
 RRTCoarse::RRTCoarse(const base::SpaceInformationPtr &si) : base::Planner(si, "RRTCoarse"), grid_(2)
 {
     specs_.approximateSolutions = true;
@@ -26,6 +43,10 @@ RRTCoarse::RRTCoarse(const base::SpaceInformationPtr &si) : base::Planner(si, "R
     maxDistance_ = 0.0;
     delayCC_ = true;
     lastGoalMotion_ = NULL;
+
+    /* My addition */
+    exploreBias_ = 0.1;
+    /* End of my addition */
 
     iterations_ = 0;
     collisionChecks_ = 0;
@@ -92,6 +113,12 @@ void RRTCoarse::clear(void)
 
 ompl::base::PlannerStatus RRTCoarse::solve(const base::PlannerTerminationCondition &ptc)
 {
+    /* My addition */
+    buildGrid();
+    std::vector<Grid<int>::Cell*> cellsExplored;
+    // std::priority_queue<Grid<int>::Cell> cellQueue;
+    std::priority_queue<Grid<int>::Cell*, std::vector<Grid<int>::Cell*>, CellComparator> cellQueue;
+    /* End of my addition */
     checkValidity();
     base::Goal                  *goal   = pdef_->getGoal().get();
     base::GoalSampleableRegion  *goal_s = dynamic_cast<base::GoalSampleableRegion*>(goal);
@@ -106,6 +133,12 @@ ompl::base::PlannerStatus RRTCoarse::solve(const base::PlannerTerminationConditi
         si_->copyState(motion->state, st);
         motion->cost = opt_->identityCost();
         nn_->add(motion);
+        /* My addition */
+        if(si_->getStateSpace()->getType()==base::STATE_SPACE_SE2) {
+            cellsExplored.push_back(getGridCell(st));
+            cellQueue.push((getGridCell(st)));
+        }
+        /* End of my addition */
     }
 
     if (nn_->size() == 0)
@@ -157,12 +190,29 @@ ompl::base::PlannerStatus RRTCoarse::solve(const base::PlannerTerminationConditi
     while (ptc == false)
     {
         iterations_++;
-        // sample random state (with goal biasing)
-        // Goal samples are only sampled until maxSampleCount() goals are in the tree, to prohibit duplicate goal states.
-        if (goal_s && goalMotions_.size() < goal_s->maxSampleCount() && rng_.uniform01() < goalBias_ && goal_s->canSample())
-            goal_s->sampleGoal(rstate);
-        else
-            sampler_->sampleUniform(rstate);
+        if(!si_->getStateSpace()->getType()==base::STATE_SPACE_SE2) {
+            // sample random state (with goal biasing)
+            // Goal samples are only sampled until maxSampleCount() goals are in the tree, to prohibit duplicate goal states.
+            if (goal_s && goalMotions_.size() < goal_s->maxSampleCount() && rng_.uniform01() < goalBias_ && goal_s->canSample())
+                goal_s->sampleGoal(rstate);
+            else
+                sampler_->sampleUniform(rstate);
+        }
+        else {
+            if (goal_s && goalMotions_.size() < goal_s->maxSampleCount() && rng_.uniform01() < goalBias_ && goal_s->canSample())
+                goal_s->sampleGoal(rstate);
+            else if(rng_.uniform01() < exploreBias_)
+                sampler_->sampleUniform(rstate);
+            else {
+                Grid<int>::Cell *cell = cellQueue.top();
+                double xCoord = cell->coord[0];
+                double yCoord = cell->coord[1];
+                base::SE2StateSpace::StateType nearState;
+                nearState.setX(xCoord);
+                nearState.setY(yCoord);
+                sampler_->sampleUniformNear(&nearState, rstate, maxDistance_);
+            }
+        }
 
         // find closest state in the tree
         Motion *nmotion = nn_->nearest(rmotion);
@@ -301,6 +351,13 @@ ompl::base::PlannerStatus RRTCoarse::solve(const base::PlannerTerminationConditi
             // add motion to the tree
             nn_->add(motion);
             motion->parent->children.push_back(motion);
+
+            /* My addition */
+            if(si_->getStateSpace()->getType()!=base::STATE_SPACE_SE2) {
+                cellsExplored.push_back(getGridCell(dstate));
+                cellQueue.push((getGridCell(dstate)));
+            }
+            /* End of my addition */
 
             bool checkForSolution = false;
             // rewire tree if needed
@@ -604,11 +661,50 @@ void RRTCoarse::buildGrid(void) {
                 if(grid_.has(coord)) {
                     cell = grid_.getCell(coord);
                     if(cell->data==-1) {
-                        cell->data = data;
-                        cellqueue.push(cell);
+                        if(isValidCoord(coord)) {
+                            cell->data = data;
+                            cellqueue.push(cell);
+                        }
+                        else {
+                            cell->data = std::numeric_limits<int>::max();
+                        }
                     }
                 }
             }
         }
     }
+}
+
+bool RRTCoarse::isValidCoord(std::vector<int> coord) {
+    int x = coord[0];
+    int y = coord[1];
+    base::SE2StateSpace::StateType state;
+    /* Check the end points for validity */
+    for(int i = 0; i < 2; i++) {
+        for (int j = 0; j < 2; j++) {
+            state.setXY(x+i,y+j);
+            base::State * s = &state;
+            if(!si_->isValid(s))
+                return false;
+        }
+    }
+    /* Check the center of the cell for validity */
+    state.setXY(x+0.5,y+0.5);
+    base::State * s = &state;
+    if(!si_->isValid(s))
+        return false;
+    return true;
+}
+
+Grid<int>::Cell* RRTCoarse::getGridCell(const base::State * s) {
+    const base::SE2StateSpace::StateType * st = s->as<base::SE2StateSpace::StateType>();
+    double stateX = st->getX();
+    double stateY = st->getY();
+
+    int x = std::floor(stateX);
+    int y = std::floor(stateY);
+    std::vector<int> coord;
+    coord.push_back(x);
+    coord.push_back(y);
+    return grid_.getCell(coord);
 }
