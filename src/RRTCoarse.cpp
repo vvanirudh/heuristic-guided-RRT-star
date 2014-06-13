@@ -369,9 +369,12 @@ ompl::base::PlannerStatus RRTCoarse::solve(const base::PlannerTerminationConditi
             if(si_->getStateSpace()->getType()==base::STATE_SPACE_SE2) {
                 // cellsExplored.push_back(getGridCell(dstate));
                 /* Debug Statements */
-                std::cout<<"Pushed state "<<(dstate->as<base::SE2StateSpace::StateType>())->getX() << " " << (dstate->as<base::SE2StateSpace::StateType>())->getY()<<std::endl;
+                std::cout<<"Added state "<<(dstate->as<base::SE2StateSpace::StateType>())->getX() << " " << (dstate->as<base::SE2StateSpace::StateType>())->getY()<<std::endl;
                 /* End */
                 cellQueue.push((getGridCell(dstate)));
+                /* Debug Statements */
+                std::cout<<"Pushed Cell "<<getGridCell(dstate)->coord[0]<<" "<<getGridCell(dstate)->coord[1]<<std::endl;
+                /* End */
             }
             /* End of my addition */
 

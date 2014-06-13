@@ -11,6 +11,7 @@
 #include "ompl/geometric/PathSimplifier.h"
 #include "environment_generator/environments.h"
 #include "RRTCoarse/RRTCoarse.h"
+#include "ompl/geometric/planners/rrt/RRTstar.h"
 
 namespace ob = ompl::base;
 namespace og = ompl::geometric;
@@ -35,7 +36,9 @@ int main(int argc, char **argv) {
   ros::NodeHandle n("~");
 
   ros::Publisher pub_path_marker = n.advertise<visualization_msgs::Marker>("path", 1);
+  ros::Publisher pub_path_marker2 = n.advertise<visualization_msgs::Marker>("path_optimal", 1);
   ros::Publisher pub_graph_marker = n.advertise<visualization_msgs::Marker>("graph", 1);
+  ros::Publisher pub_graph_marker2 = n.advertise<visualization_msgs::Marker>("graph_optimal", 1);
   ros::Publisher pub_env_marker_array = n.advertise<visualization_msgs::MarkerArray>("environment", 1);
   ros::Duration(1.0).sleep();
 
@@ -68,6 +71,8 @@ int main(int argc, char **argv) {
   rrtc->setRange(5);
   rrtc->setExploreBias(0.1);
 
+  
+
   ob::PlannerPtr optimizingPlanner(rrtc);
   optimizingPlanner->setProblemDefinition(pdef);
   optimizingPlanner->setup();
@@ -76,6 +81,8 @@ int main(int argc, char **argv) {
   for (std::size_t i = 0; i < ma.markers.size(); i++)
     ma.markers[i].id = i;
   pub_env_marker_array.publish(ma);
+
+  
 
   ob::PlannerStatus solved = optimizingPlanner->solve(20.0);
 
@@ -99,6 +106,33 @@ int main(int argc, char **argv) {
     graph_marker.header.stamp = ros::Time::now();
     graph_marker.header.frame_id = "/world";
     pub_graph_marker.publish(graph_marker);
+
+    ob::ProblemDefinitionPtr pdef2(new ob::ProblemDefinition(si));
+    pdef2->setStartAndGoalStates(start, goal);
+    pdef2->setOptimizationObjective(getPathLengthObjective(si));
+    boost::shared_ptr<og::RRTstar> rrtstar = boost::shared_ptr<og::RRTstar>(new og::RRTstar(si));
+    rrtstar->setRange(5);
+    ob::PlannerPtr optimizingPlanner2(rrtstar);
+    optimizingPlanner2->setProblemDefinition(pdef2);
+    optimizingPlanner2->setup();
+    ob::PlannerStatus solved2 = optimizingPlanner2->solve(20.0);
+
+    boost::shared_ptr<og::PathGeometric> path2 = boost::static_pointer_cast<og::PathGeometric>(pdef2->getSolutionPath());
+    path2->interpolate(1000);
+    visualization_msgs::Marker path_marker2 = ov::GetMarker(*path2, 0.1,1);
+    path_marker2.ns = "path_optimal";
+    path_marker2.header.stamp = ros::Time::now();
+    path_marker2.header.frame_id = "/world";
+    pub_path_marker2.publish(path_marker2);
+
+    ob::PlannerData data2(si);
+    optimizingPlanner2->getPlannerData(data2);
+    visualization_msgs::Marker graph_marker2 = ov::GetMarker(data2, 100, 0.05, 1, 0, 0, 0.3);
+    graph_marker2.ns = "graph_optimal";
+    graph_marker2.header.stamp = ros::Time::now();
+    graph_marker2 .header.frame_id = "/world";
+    pub_graph_marker2.publish(graph_marker2);
+
   }
   else {
     ROS_INFO_STREAM("No solution found");
