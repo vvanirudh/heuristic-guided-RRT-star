@@ -43,9 +43,9 @@ int main(int argc, char **argv) {
   ros::Duration(1.0).sleep();
 
   PoissonRandomEnvironment Poissonenv;
-  Poissonenv.Initialize(0.001, 0, 0, 100, 100);
-  Poissonenv.CarveCircle(1,1,5);
-  Poissonenv.CarveCircle(88,88,5);
+  Poissonenv.Initialize(0.003, 0, 0, 100, 100);
+  Poissonenv.CarveCircle(1,1,10);
+  Poissonenv.CarveCircle(88,88,10);
   boost::shared_ptr<Environment> env = boost::shared_ptr<Environment>(new PoissonRandomEnvironment(Poissonenv));
 
   ob::StateSpacePtr space(new ob::DubinsStateSpace(2.0, false));
@@ -68,8 +68,8 @@ int main(int argc, char **argv) {
   pdef->setOptimizationObjective(getPathLengthObjective(si));
 
   boost::shared_ptr<RRTCoarse> rrtc = boost::shared_ptr<RRTCoarse>(new RRTCoarse(si));
-  rrtc->setRange(5);
-  rrtc->setExploreBias(0.01);
+  rrtc->setRange(10);
+  rrtc->setExploreBias(0.1);
 
   
 
@@ -111,7 +111,7 @@ int main(int argc, char **argv) {
     pdef2->setStartAndGoalStates(start, goal);
     pdef2->setOptimizationObjective(getPathLengthObjective(si));
     boost::shared_ptr<og::RRTstar> rrtstar = boost::shared_ptr<og::RRTstar>(new og::RRTstar(si));
-    rrtstar->setRange(5);
+    rrtstar->setRange(10);
     ob::PlannerPtr optimizingPlanner2(rrtstar);
     optimizingPlanner2->setProblemDefinition(pdef2);
     optimizingPlanner2->setup();

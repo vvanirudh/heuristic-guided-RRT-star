@@ -93,6 +93,7 @@ void RRTCoarse::setup(void)
         OMPL_INFORM("%s: No optimization objective specified. Defaulting to optimizing path length for the allowed planning time.", getName().c_str());
         opt_.reset(new base::PathLengthOptimizationObjective(si_));
     }
+    buildGrid();
 }
 
 void RRTCoarse::clear(void)
@@ -115,8 +116,10 @@ void RRTCoarse::clear(void)
 ompl::base::PlannerStatus RRTCoarse::solve(const base::PlannerTerminationCondition &ptc)
 {
     /* My addition */
-    buildGrid();
+    // buildGrid();
     std::priority_queue<Grid<int>::Cell*, std::vector<Grid<int>::Cell*>, CellComparator> cellQueue;
+    // Grid<int>::Cell* minCell;
+    // CellComparator comparecell;
     /* End of my addition */
     
     checkValidity();
@@ -135,13 +138,21 @@ ompl::base::PlannerStatus RRTCoarse::solve(const base::PlannerTerminationConditi
         nn_->add(motion);
         /* My addition */
         if(si_->getStateSpace()->getType()==base::STATE_SPACE_SE2) {
-            /* Debug Statements */
+            /* Debug Statements 
             const base::SE2StateSpace::StateType* debug_st = st->as<base::SE2StateSpace::StateType>();
             double debug_x = debug_st->getX();
             double debug_y = debug_st->getY();
             std::cout<<"Added start states "<<debug_x<<" "<<debug_y<<std::endl;
             /* End */
             cellQueue.push((getGridCell(st)));
+            // if(minCell==NULL) {
+            //     minCell = getGridCell(st);
+            // }
+            // else {
+            //     if(comparecell(minCell, getGridCell(st))) {
+            //         minCell = getGridCell(st);
+            //     }
+            // }
         }
         /* End of my addition */
     }
@@ -190,29 +201,28 @@ ompl::base::PlannerStatus RRTCoarse::solve(const base::PlannerTerminationConditi
 
     // our functor for sorting nearest neighbors
     CostIndexCompare compareFn(costs, *opt_);
-    std::cout<<"PTC : "<<ptc<<std::endl;
 
     while (ptc == false)
     {
         iterations_++;
-        std::cout<<"Iterations : "<<iterations_<<std::endl;
         if (goal_s && goalMotions_.size() < goal_s->maxSampleCount() && rng_.uniform01() < goalBias_ && goal_s->canSample()) {
-            /* Debug Statements */
+            /* Debug Statements
             std::cout<<"Sampled Goal"<<std::endl;
             /* End */
             goal_s->sampleGoal(rstate);
         }
         else if(rng_.uniform01() < exploreBias_) {
-            /* Debug Statements */
+            /* Debug Statements
             std::cout<<"Sampled Randomly"<<std::endl;
             /* End */
             sampler_->sampleUniform(rstate);
         }
         else {
             Grid<int>::Cell *cell = cellQueue.top();
+            // Grid<int>::Cell *cell = minCell;
             double xCoord = cell->coord[0];
             double yCoord = cell->coord[1];
-            /* Debug Statements */
+            /* Debug Statements 
             std::cout<<"Popped cell coordinates "<<xCoord<<" "<<yCoord<<std::endl;
             /* End */
             base::State* tempSt = si_->allocState();
@@ -221,7 +231,7 @@ ompl::base::PlannerStatus RRTCoarse::solve(const base::PlannerTerminationConditi
             nearState->setY(yCoord);
             base::State* nearSt = nearState;
             sampler_->sampleUniformNear(nearSt, rstate, maxDistance_);
-            /* Debug Statements */
+            /* Debug Statements 
             std::cout<<"Sampled Point "<<(rstate->as<base::SE2StateSpace::StateType>())->getX()<<" "<<(rstate->as<base::SE2StateSpace::StateType>())->getY()<<std::endl;
             /* End */
         }
@@ -368,11 +378,14 @@ ompl::base::PlannerStatus RRTCoarse::solve(const base::PlannerTerminationConditi
             /* My addition */
             if(si_->getStateSpace()->getType()==base::STATE_SPACE_SE2) {
                 // cellsExplored.push_back(getGridCell(dstate));
-                /* Debug Statements */
+                /* Debug Statements 
                 std::cout<<"Added state "<<(dstate->as<base::SE2StateSpace::StateType>())->getX() << " " << (dstate->as<base::SE2StateSpace::StateType>())->getY()<<std::endl;
                 /* End */
                 cellQueue.push((getGridCell(dstate)));
-                /* Debug Statements */
+                // if(comparecell(minCell, getGridCell(dstate))) {
+                //     minCell = getGridCell(dstate);
+                // }
+                /* Debug Statements 
                 std::cout<<"Pushed Cell "<<getGridCell(dstate)->coord[0]<<" "<<getGridCell(dstate)->coord[1]<<std::endl;
                 /* End */
             }
@@ -694,7 +707,7 @@ void RRTCoarse::buildGrid(void) {
                             cellqueue.push(cell);
                         }
                         else {
-                            /* Debug Statements */
+                            /* Debug Statements 
                             std::cout<<"Cell "<<coord[0]<<" "<<coord[1]<<" has obstacle"<<std::endl;
                             /* End */
                             cell->data = std::numeric_limits<int>::max();
@@ -740,4 +753,95 @@ Grid<int>::Cell* RRTCoarse::getGridCell(const base::State * s) {
     coord.push_back(x);
     coord.push_back(y);
     return grid_.getCell(coord);
+}
+
+void RRTCoarse::buildGrid(double resolution) {
+    if(si_->getStateSpace()->getType()!=base::STATE_SPACE_SE2) {
+        return;
+    }
+
+    /* State space is SE2 */
+    base::Goal *goal = pdef_->getGoal().get();
+    // base::GoalState *goalstateptr = dynamic_cast<base::GoalState*>(goal);
+    base::GoalState* goalstateptr = goal->as<base::GoalState>();
+    base::State *goalstate = goalstateptr->getState(); // Obtained the goal state
+
+    /* Get the goal coordinates */
+    // double goalX = dynamic_cast<base::SE2StateSpace::StateType*>(goalstate)->getX();
+    // double goalY = dynamic_cast<base::SE2StateSpace::StateType*>(goalstate)->getY();
+    base::SE2StateSpace::StateType * goalst = goalstate->as<base::SE2StateSpace::StateType>();
+    double goalX = goalst->getX();
+    double goalY = goalst->getY();
+
+    /* Get the start coordinates */
+    // double startX = dynamic_cast<base::SE2StateSpace::StateType*>(pdef_->getStartState(0))->getX();
+    // double startY = dynamic_cast<base::SE2StateSpace::StateType*>(pdef_->getStartState(0))->getY();
+    base::SE2StateSpace::StateType* startst = pdef_->getStartState(0)->as<base::SE2StateSpace::StateType>();
+    double startX = startst->getX();
+    double startY = startst->getY();
+
+    /* Get bounds of the state space */
+    boost::shared_ptr<base::StateSpace> space = si_->getStateSpace();
+    // base::RealVectorBounds bounds = dynamic_cast<base::SE2StateSpace*>(space.get())->getBounds();
+    base::SE2StateSpace* statespace = (space.get())->as<base::SE2StateSpace>();
+    base::RealVectorBounds bounds = statespace->getBounds();
+    double xlow = bounds.low[0];
+    double xhigh = bounds.high[0];
+    double ylow = bounds.low[1];
+    double yhigh = bounds.high[1];
+
+    /* Create all grid cells */
+    for(int i = std::floor(xlow); i < std::floor(xhigh) + 1; i++) {
+        for(int j = std::floor(ylow); j < std::floor(yhigh) + 1; j++) {
+            std::vector<int> coord;
+            coord.push_back(i);
+            coord.push_back(j);
+            Grid<int>::Cell * cell = grid_.createCell(coord);
+            cell->data = -1;
+            grid_.add(cell);
+        }
+    }
+
+    /* Run Djikstra/ some other to assign value function to all cells */
+    // std::queue<Grid<int>::Cell*> cellqueue;
+    std::priority_queue<Grid<int>::Cell*> cellqueue;
+    std::vector<int> coord;
+    coord.push_back(std::floor(goalX));
+    coord.push_back(std::floor(goalY));
+    Grid<int>::Cell * goal_cell = grid_.getCell(coord);
+    goal_cell->data = 0;
+    cellqueue.push(goal_cell);
+    while(!cellqueue.empty()) {
+        // Grid<int>::Cell* cell = cellqueue.front();
+        Grid<int>::Cell* cell = cellqueue.top();
+        cellqueue.pop();
+        coord = cell->coord;
+        int x = coord[0];
+        int y = coord[1];
+        int data = cell->data;
+        data++;
+        for (int i = -1; i < 2; i++) {
+            for (int j = -1; j < 2; j++) {
+                if(i==0 && j==0)
+                    continue;
+                coord[0] = x+i;
+                coord[1] = y+j;
+                if(grid_.has(coord)) {
+                    cell = grid_.getCell(coord);
+                    if(cell->data==-1) {
+                        if(isValidCoord(coord)) {
+                            cell->data = data;
+                            cellqueue.push(cell);
+                        }
+                        else {
+                            /* Debug Statements 
+                            std::cout<<"Cell "<<coord[0]<<" "<<coord[1]<<" has obstacle"<<std::endl;
+                            /* End */
+                            cell->data = std::numeric_limits<int>::max();
+                        }
+                    }
+                }
+            }
+        }
+    }
 }

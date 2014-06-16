@@ -77,6 +77,22 @@ Visualization Manager:
         {}
       Queue Size: 100
       Value: true
+    - Class: rviz/Marker
+      Enabled: true
+      Marker Topic: /poisson_random_environment/path_optimal
+      Name: Marker
+      Namespaces:
+        {}
+      Queue Size: 100
+      Value: true
+    - Class: rviz/Marker
+      Enabled: true
+      Marker Topic: /poisson_random_environment/graph_optimal
+      Name: Marker
+      Namespaces:
+        {}
+      Queue Size: 100
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 255; 255; 255
@@ -101,22 +117,22 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 142.594
+      Distance: 129.376
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.06
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 52.9412
-        Y: 49.8788
-        Z: -3.20497
+        X: 48.7023
+        Y: 48.2434
+        Z: -3.21953
       Name: Current View
       Near Clip Distance: 0.01
-      Pitch: 1.5448
+      Pitch: 1.5548
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 4.71357
+      Yaw: 4.72358
     Saved: ~
 Window Geometry:
   Displays:

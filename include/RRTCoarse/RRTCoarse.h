@@ -227,6 +227,12 @@ class RRTCoarse : public base::Planner
 	void buildGrid(void);
 
 	/**
+	 * \brief A generic grid building function that takes the resolution as a parameter
+	 * @param resolution The Grid resolution
+	 */
+	void buildGrid(double resolution);
+
+	/**
 	 * \brief The function that checks whether a given coordinate/cell contains an obstacle
 	 * @param  coord vector containing the coordinate values
 	 * @return       True if the cell does not contain an obstacle, false if it does.
