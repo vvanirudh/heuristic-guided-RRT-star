@@ -790,6 +790,9 @@ void RRTCoarse::buildGrid(double resolution) {
     double ylow = bounds.low[1];
     double yhigh = bounds.high[1];
 
+    double width = xhigh - xlow;
+    double height = yhigh - ylow;
+
     /* Create all grid cells */
     for(int i = std::floor(xlow); i < std::floor(xhigh) + 1; i++) {
         for(int j = std::floor(ylow); j < std::floor(yhigh) + 1; j++) {
@@ -828,7 +831,7 @@ void RRTCoarse::buildGrid(double resolution) {
                 coord[1] = y+j;
                 if(grid_.has(coord)) {
                     cell = grid_.getCell(coord);
-                    if(cell->data==-1) {
+                    if(cell->data==-1 || cell->data>data) {
                         if(isValidCoord(coord)) {
                             cell->data = data;
                             cellqueue.push(cell);
