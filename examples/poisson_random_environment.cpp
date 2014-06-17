@@ -71,7 +71,7 @@ int main(int argc, char **argv) {
   rrtc->setRange(10);
   rrtc->setExploreBias(0.1);
 
-  
+  // rrtc->setResolution(0.5);
 
   ob::PlannerPtr optimizingPlanner(rrtc);
   optimizingPlanner->setProblemDefinition(pdef);

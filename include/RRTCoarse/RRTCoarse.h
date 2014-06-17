@@ -94,12 +94,36 @@ class RRTCoarse : public base::Planner
 	virtual void setup(void);
 
 	/* My addition */
+	/**
+	 * \brief Sets the exploration bias
+	 * @param exploreBias The probability with which it should explore
+	 */
 	void setExploreBias(double exploreBias) {
 		exploreBias_ = exploreBias;
 	}
 
+	/**
+	 * \brief Gets the exploration bias 
+	 * @return  The probability with which it explores
+	 */
 	double getExploreBias(void) {
 		return exploreBias_;
+	}
+
+	/**
+	 * \brief Sets the grid resolution
+	 * @param resolution The grid resolution
+	 */
+	void setResolution(double resolution) {
+		resolution_ = resolution;
+	}
+
+	/**
+	 * \brief Returns the grid resolution
+	 * @return  The resolution of the grid
+	 */
+	double getResolution(void) {
+		return resolution_;
 	}
 	/* End of my addition */
 
@@ -222,7 +246,7 @@ class RRTCoarse : public base::Planner
 	Grid<int>																				grid_;
 
 	/**
-	 * \brief The function that builds the value function grid
+	 * \brief The function that builds the value function grid (resolution = 1)
 	 */
 	void buildGrid(void);
 
@@ -233,21 +257,42 @@ class RRTCoarse : public base::Planner
 	void buildGrid(double resolution);
 
 	/**
-	 * \brief The function that checks whether a given coordinate/cell contains an obstacle
+	 * \brief The function that checks whether a given coordinate/cell contains an obstacle (resolution = 1)
 	 * @param  coord vector containing the coordinate values
 	 * @return       True if the cell does not contain an obstacle, false if it does.
 	 */
 	bool isValidCoord(std::vector<int> coord);
 
 	/**
-	 * \brief Gives the grid cell corresponding to the state
+	 * \brief The function that checks whether a given coordinate/cell contains an obstacle (resolution version)
+	 * @param  coord      Vector that contains the coordinate values
+	 * @param  resolution Resolution of the grid
+	 * @return            True if the cell does not contain an obstacle, false otherwise
+	 */
+	bool isValidCoord(std::vector<int> coord, double resolution);
+
+	/**
+	 * \brief Gives the grid cell corresponding to the state (resolution = 1)
 	 * @param  s Input State
 	 * @return   The cell corresponding to the given input state
 	 */
 	Grid<int>::Cell* getGridCell(const base::State* s);
 
 	/**
+	 * \brief Gives the  grid cell corresponding to the state (resolution version)
+	 * @param  s          input state
+	 * @param  resolution Grid resolution
+	 * @return            The cell corresponding to the given input state
+	 */
+	Grid<int>::Cell* getGridCell(const base::State* s, double resolution);
+
+	/**
 	 * \brief The fraction of time some random state is sampled instead of biasing it towards the decreasing gradient of value function
 	 */
 	double 																					exploreBias_;
+
+	/**
+	 * \brief The grid resolution
+	 */
+	double 																					resolution_;	
 };

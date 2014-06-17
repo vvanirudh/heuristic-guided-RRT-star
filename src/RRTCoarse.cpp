@@ -47,6 +47,7 @@ RRTCoarse::RRTCoarse(const base::SpaceInformationPtr &si) : base::Planner(si, "R
 
     /* My addition */
     exploreBias_ = 0.1;
+    resolution_ = 1;
     /* End of my addition */
 
     iterations_ = 0;
@@ -93,7 +94,10 @@ void RRTCoarse::setup(void)
         OMPL_INFORM("%s: No optimization objective specified. Defaulting to optimizing path length for the allowed planning time.", getName().c_str());
         opt_.reset(new base::PathLengthOptimizationObjective(si_));
     }
+    /* My addition */
     buildGrid();
+    // buildGrid(resolution_);
+    /* End */
 }
 
 void RRTCoarse::clear(void)
@@ -138,21 +142,17 @@ ompl::base::PlannerStatus RRTCoarse::solve(const base::PlannerTerminationConditi
         nn_->add(motion);
         /* My addition */
         if(si_->getStateSpace()->getType()==base::STATE_SPACE_SE2) {
+
             /* Debug Statements 
             const base::SE2StateSpace::StateType* debug_st = st->as<base::SE2StateSpace::StateType>();
             double debug_x = debug_st->getX();
             double debug_y = debug_st->getY();
             std::cout<<"Added start states "<<debug_x<<" "<<debug_y<<std::endl;
             /* End */
+
             cellQueue.push((getGridCell(st)));
-            // if(minCell==NULL) {
-            //     minCell = getGridCell(st);
-            // }
-            // else {
-            //     if(comparecell(minCell, getGridCell(st))) {
-            //         minCell = getGridCell(st);
-            //     }
-            // }
+            // cellQueue.push(getGridCell(st,resolution_));
+
         }
         /* End of my addition */
     }
@@ -377,14 +377,14 @@ ompl::base::PlannerStatus RRTCoarse::solve(const base::PlannerTerminationConditi
 
             /* My addition */
             if(si_->getStateSpace()->getType()==base::STATE_SPACE_SE2) {
-                // cellsExplored.push_back(getGridCell(dstate));
+
                 /* Debug Statements 
                 std::cout<<"Added state "<<(dstate->as<base::SE2StateSpace::StateType>())->getX() << " " << (dstate->as<base::SE2StateSpace::StateType>())->getY()<<std::endl;
                 /* End */
+
                 cellQueue.push((getGridCell(dstate)));
-                // if(comparecell(minCell, getGridCell(dstate))) {
-                //     minCell = getGridCell(dstate);
-                // }
+                // cellQueue.push(getGridCell(dstate, resolution_));
+
                 /* Debug Statements 
                 std::cout<<"Pushed Cell "<<getGridCell(dstate)->coord[0]<<" "<<getGridCell(dstate)->coord[1]<<std::endl;
                 /* End */
@@ -794,11 +794,13 @@ void RRTCoarse::buildGrid(double resolution) {
     double height = yhigh - ylow;
 
     /* Create all grid cells */
-    for(int i = std::floor(xlow); i < std::floor(xhigh) + 1; i++) {
-        for(int j = std::floor(ylow); j < std::floor(yhigh) + 1; j++) {
+    for(double i = std::floor(xlow); i < std::floor(xhigh); i+=resolution) {
+        for(double j = std::floor(ylow); j < std::floor(yhigh); j+=resolution) {
+            int coord_x = i*(1/resolution);
+            int coord_y = j*(1/resolution);
             std::vector<int> coord;
-            coord.push_back(i);
-            coord.push_back(j);
+            coord.push_back(coord_x);
+            coord.push_back(coord_y);
             Grid<int>::Cell * cell = grid_.createCell(coord);
             cell->data = -1;
             grid_.add(cell);
@@ -847,4 +849,40 @@ void RRTCoarse::buildGrid(double resolution) {
             }
         }
     }
+}
+
+bool RRTCoarse::isValidCoord(std::vector<int> coord, double resolution) {
+    double x = coord[0] * resolution;
+    double y = coord[1] * resolution;
+    // base::SE2StateSpace::StateType state;
+    base::State* state = si_->allocState();
+    base::SE2StateSpace::StateType* st = state->as<base::SE2StateSpace::StateType>();
+    /* Check the end points for validity */
+    for(double i = 0; i <= resolution; i+=resolution) {
+        for (double j = 0; j <= resolution; j+=resolution) {
+            st->setXY(x+i,y+j);
+            base::State * s = st;
+            if(!si_->isValid(s))
+                return false;
+        }
+    }
+    /* Check the center of the cell for validity */
+    st->setXY(x+(resolution/2),y+(resolution/2));
+    base::State * s = st;
+    if(!si_->isValid(s))
+        return false;
+    return true;
+}
+
+Grid<int>::Cell* RRTCoarse::getGridCell(const base::State * s, double resolution) {
+    const base::SE2StateSpace::StateType * st = s->as<base::SE2StateSpace::StateType>();
+    double stateX = st->getX();
+    double stateY = st->getY();
+
+    int x = std::floor(stateX/resolution);
+    int y = std::floor(stateY/resolution);
+    std::vector<int> coord;
+    coord.push_back(x);
+    coord.push_back(y);
+    return grid_.getCell(coord);
 }
